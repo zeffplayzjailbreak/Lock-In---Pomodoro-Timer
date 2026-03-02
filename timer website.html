@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lock In! - Pomodoro Timer</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- React 18 + ReactDOM via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel standalone to compile JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --red:        #e8253a;
+  --red-dark:   #c0192b;
+  --red-glow:   rgba(232,37,58,0.38);
+  --green:      #00d68f;
+  --green-dark: #00a86b;
+  --green-glow: rgba(0,214,143,0.32);
+  --blue:       #00b4ff;
+  --bg:         #111111;
+  --s1:         #1a1a1a;
+  --s2:         #222222;
+  --s3:         #2d2d2d;
+  --b1:         rgba(255,255,255,0.07);
+  --b2:         rgba(255,255,255,0.13);
+  --text:       #f2f2f2;
+  --muted:      #7a7a7a;
+}
+
+html, body, #root {
+  width: 100%; min-height: 100%;
+  font-family: 'Nunito Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--s3); border-radius: 3px; }
+
+/* BLOBS */
+.blob { position: fixed; pointer-events: none; z-index: 0; border-radius: 50%; }
+.blob-t {
+  width: 700px; height: 550px; top: -220px; left: 50%; transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(232,37,58,0.08), transparent 65%);
+}
+.blob-b {
+  width: 400px; height: 400px; bottom: -140px; right: -80px;
+  background: radial-gradient(circle, rgba(0,180,255,0.05), transparent 65%);
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  height: 56px; display: flex; align-items: center;
+  padding: 0 1.75rem; gap: 1rem;
+  background: rgba(14,14,14,0.94);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--b1);
+}
+.logo { display: flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
+.logo-pill {
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1rem;
+  background: var(--red); color: #fff; padding: 2px 10px; border-radius: 8px;
+}
+.logo-text {
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1.2rem;
+  color: #fff; letter-spacing: -0.3px;
+}
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 0.65rem; }
+.nav-chip {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: var(--s2); border: 1px solid var(--b2);
+  border-radius: 20px; padding: 0.28rem 0.85rem;
+  font-size: 0.77rem; font-weight: 700; color: var(--muted);
+}
+.cv { font-family: 'Nunito', sans-serif; font-size: 0.95rem; font-weight: 800; }
+.cv-r { color: var(--red); }
+.cv-b { color: var(--blue); }
+
+/* PAGE */
+.page {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 2.2rem 1rem 4rem;
+  transition: opacity 0.15s;
+}
+.page.flash { opacity: 0.45; }
+.eyebrow {
+  font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 3px; color: var(--red); margin-bottom: 0.45rem; text-align: center;
+}
+h1 {
+  font-family: 'Nunito', sans-serif; font-weight: 900;
+  font-size: clamp(1.7rem, 4.5vw, 2.5rem);
+  text-align: center; line-height: 1.1; letter-spacing: -0.5px; margin-bottom: 0.4rem;
+}
+.page-sub { color: var(--muted); font-size: 0.88rem; text-align: center; margin-bottom: 2.2rem; }
+
+/* RING */
+.ring-stage {
+  position: relative;
+  width: clamp(260px, 72vw, 340px);
+  height: clamp(260px, 72vw, 340px);
+  margin-bottom: 1.8rem; flex-shrink: 0;
+}
+.ring-glow {
+  position: absolute; inset: 10px; border-radius: 50%;
+  transition: box-shadow 0.7s; pointer-events: none;
+}
+.ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-inner {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
+}
+.badge {
+  font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 3px;
+  padding: 0.22rem 0.85rem; border-radius: 20px;
+  background: var(--s2); border: 1px solid var(--b2); color: var(--muted);
+  margin-bottom: 0.3rem; transition: color 0.4s, border-color 0.4s;
+}
+.badge-focus { color: var(--red);   border-color: rgba(232,37,58,0.3); }
+.badge-break { color: var(--green); border-color: rgba(0,214,143,0.3); }
+.time-display {
+  font-family: 'Nunito', sans-serif; font-weight: 900;
+  font-size: clamp(3.2rem, 13vw, 4.8rem);
+  line-height: 1; letter-spacing: -4px; color: #fff;
+}
+.time-label { font-size: 0.7rem; color: var(--muted); font-weight: 600; margin-top: 0.2rem; text-align: center; padding: 0 1rem; }
+
+/* CONTROLS */
+.controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+
+.btn-main {
+  background: var(--red); color: #fff;
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem;
+  padding: 0.9rem 2.8rem; border-radius: 14px; border: none; cursor: pointer;
+  box-shadow: 0 4px 22px var(--red-glow); min-width: 155px;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.1s;
+  user-select: none;
+}
+.btn-main:hover { background: var(--red-dark); }
+.btn-main:active { transform: scale(0.92); }
+.btn-green { background: var(--green) !important; box-shadow: 0 4px 22px var(--green-glow) !important; }
+.btn-green:hover { background: var(--green-dark) !important; }
+
+.btn-circle {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--s2); border: 1px solid var(--b2);
+  color: var(--muted); font-size: 1.25rem;
+  font-family: 'Nunito', sans-serif; font-weight: 800;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.18s, color 0.18s, transform 0.1s; user-select: none;
+}
+.btn-circle:hover:not(:disabled) { background: var(--s3); color: var(--text); }
+.btn-circle:active:not(:disabled) { transform: scale(0.9); }
+.btn-circle:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* CARD */
+.card {
+  background: var(--s1); border: 1px solid var(--b1);
+  border-radius: 20px; padding: 1.5rem;
+  width: 100%; max-width: 480px; margin-bottom: 1.2rem;
+}
+.card-last { margin-bottom: 0; }
+.card-title {
+  font-family: 'Nunito', sans-serif; font-weight: 800;
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.8px;
+  color: var(--muted); margin-bottom: 1.2rem;
+  padding-bottom: 0.8rem; border-bottom: 1px solid var(--b1);
+}
+
+/* SETTINGS */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.field-label {
+  font-size: 0.74rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.45rem;
+}
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-r { background: var(--red); }
+.dot-g { background: var(--green); }
+
+/* STEPPER */
+.stepper {
+  display: flex; align-items: center;
+  background: var(--s2); border: 1.5px solid var(--b2);
+  border-radius: 10px; overflow: hidden;
+}
+.step-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 1.2rem; font-weight: 900;
+  font-family: 'Nunito', sans-serif;
+  width: 40px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: color 0.15s, background 0.15s;
+}
+.step-btn:hover:not(:disabled) { color: var(--text); background: var(--s3); }
+.step-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.step-input {
+  flex: 1; background: none; border: none;
+  color: #fff; font-family: 'Nunito', sans-serif;
+  font-weight: 900; font-size: 1.2rem; text-align: center;
+  outline: none; min-width: 0; padding: 0;
+}
+.step-input:disabled { opacity: 0.4; }
+.step-unit { font-size: 0.68rem; color: var(--muted); padding-right: 0.65rem; font-weight: 600; flex-shrink: 0; }
+
+/* CHIPS */
+.chips-label { font-size: 0.74rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+.chips-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.tchip {
+  flex: 1; background: var(--s2); border: 1.5px solid var(--b2);
+  border-radius: 9px; padding: 0.55rem 0.3rem;
+  color: var(--muted); font-size: 0.88rem; font-weight: 800;
+  text-align: center; cursor: pointer; font-family: 'Nunito', sans-serif;
+  transition: background 0.15s, border-color 0.2s, color 0.15s; user-select: none;
+}
+.tchip:hover { background: var(--s3); color: var(--text); }
+.tchip-on { background: rgba(232,37,58,0.14); border-color: rgba(232,37,58,0.45); color: var(--red); }
+.tchip-locked { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+/* TOGGLE */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--s2); border: 1px solid var(--b1);
+  border-radius: 10px; padding: 0.7rem 0.9rem;
+}
+.toggle-label { font-size: 0.84rem; font-weight: 600; color: var(--muted); }
+.toggle-track {
+  width: 40px; height: 22px; border-radius: 11px; cursor: pointer;
+  background: var(--s3); border: 1px solid var(--b2);
+  position: relative; transition: background 0.2s, border-color 0.2s; flex-shrink: 0;
+}
+.toggle-track.ton { background: rgba(232,37,58,0.22); border-color: rgba(232,37,58,0.4); }
+.toggle-thumb {
+  position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  top: 2px; left: 2px; background: var(--muted);
+  transition: transform 0.2s, background 0.2s; pointer-events: none;
+}
+.toggle-track.ton .toggle-thumb { transform: translateX(18px); background: var(--red); }
+
+/* LOG */
+.log-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 190px; overflow-y: auto; }
+.log-item {
+  display: flex; align-items: center; gap: 0.65rem;
+  background: var(--s2); border-radius: 9px; padding: 0.5rem 0.8rem; font-size: 0.82rem;
+}
+.ldot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ldot-r { background: var(--red); }
+.ldot-g { background: var(--green); }
+.ltext { flex: 1; }
+.ldur { color: var(--muted); font-weight: 700; }
+.lempty { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 0.9rem; }
+
+/* OVERLAY */
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+}
+.ov-card {
+  background: var(--s1); border: 1px solid var(--b2);
+  border-radius: 24px; padding: 2.5rem 2rem;
+  text-align: center; max-width: 360px; width: 90%;
+  animation: popIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes popIn { from { opacity:0; transform:scale(0.75); } to { opacity:1; transform:scale(1); } }
+.ov-emoji { font-size: 3.5rem; margin-bottom: 0.5rem; }
+.ov-title { font-family:'Nunito',sans-serif; font-weight:900; font-size:1.65rem; margin-bottom:0.35rem; }
+.ov-sub { color: var(--muted); font-size:0.88rem; line-height:1.65; margin-bottom:1.4rem; }
+.ov-stats { display:flex; gap:0.8rem; justify-content:center; margin-bottom:1.5rem; }
+.ov-stat { background:var(--s2); border-radius:12px; padding:0.75rem 1.3rem; }
+.ov-num { font-family:'Nunito',sans-serif; font-weight:900; font-size:1.5rem; color:var(--red); }
+.ov-lbl { font-size:0.7rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+.btn-restart {
+  background: var(--red); color: #fff; padding:0.8rem 2rem; border-radius:12px;
+  font-size:0.95rem; font-weight:800; font-family:'Nunito',sans-serif;
+  box-shadow:0 4px 18px var(--red-glow); width:100%; border:none; cursor:pointer;
+  transition:background 0.18s;
+}
+.btn-restart:hover { background: var(--red-dark); }
+
+@media (max-width: 500px) {
+  nav { padding: 0 1rem; }
+  .logo-text { font-size: 1rem; }
+  .chip-elapsed { display: none; }
+  .card { border-radius: 16px; padding: 1.1rem 1rem; }
+  .btn-main { padding: 0.85rem 2rem; min-width: 130px; }
+}
+@media (max-width: 360px) {
+  .logo-text { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const CIRC = 2 * Math.PI * 145; // 911.06
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function pad(n) { return String(Math.floor(Math.abs(n))).padStart(2, '0'); }
+function fmtMS(s)  { return pad(s / 60) + ':' + pad(s % 60); }
+function fmtHMS(s) { return pad(s / 3600) + ':' + pad((s % 3600) / 60) + ':' + pad(s % 60); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function nowTime() {
+  const d = new Date();
+  const h = d.getHours() % 12 || 12;
+  const ap = d.getHours() >= 12 ? 'PM' : 'AM';
+  return h + ':' + pad(d.getMinutes()) + ' ' + ap;
+}
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+function playBeep(dir) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const freqs = dir === 'up' ? [523.25, 659.25, 783.99] : [783.99, 659.25, 523.25];
+    freqs.forEach((freq, i) => {
+      const t = ctx.currentTime + i * 0.17;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.3, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + 0.36);
+    });
+  } catch(e) {}
+}
+
+// ─── Ring Component ───────────────────────────────────────────────────────────
+function Ring({ fraction, phase, timeStr, label }) {
+  const offset = CIRC * (1 - clamp(fraction, 0, 1));
+  const stroke = phase === 'break' ? '#00d68f' : '#e8253a';
+  const glow   = phase === 'focus'
+    ? '0 0 60px 12px rgba(232,37,58,0.2), 0 0 20px 4px rgba(232,37,58,0.28)'
+    : phase === 'break'
+    ? '0 0 60px 12px rgba(0,214,143,0.18), 0 0 20px 4px rgba(0,214,143,0.24)'
+    : 'none';
+  const badgeCls = phase === 'focus' ? 'badge badge-focus'
+                 : phase === 'break' ? 'badge badge-break' : 'badge';
+  const badgeTxt = phase === 'focus' ? 'FOCUS' : phase === 'break' ? 'BREAK' : 'READY';
+
+  return (
+    <div className="ring-stage">
+      <div className="ring-glow" style={{ boxShadow: glow }} />
+      <svg className="ring-svg" viewBox="0 0 320 320">
+        <circle cx="160" cy="160" r="145" fill="none" stroke="#222" strokeWidth="10" />
+        <circle
+          cx="160" cy="160" r="145" fill="none"
+          stroke={stroke} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={CIRC} strokeDashoffset={offset}
+          style={{ transition: 'stroke 0.5s ease' }}
+        />
+      </svg>
+      <div className="ring-inner">
+        <div className={badgeCls}>{badgeTxt}</div>
+        <div className="time-display">{timeStr}</div>
+        <div className="time-label">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stepper ──────────────────────────────────────────────────────────────────
+function Stepper({ value, onChange, min, max, unit, disabled }) {
+  return (
+    <div className="stepper">
+      <button className="step-btn" type="button" disabled={disabled}
+        onClick={() => onChange(clamp(value - 1, min, max))}>−</button>
+      <input className="step-input" type="number"
+        value={value} min={min} max={max} disabled={disabled}
+        onChange={e => onChange(clamp(parseInt(e.target.value) || min, min, max))} />
+      <span className="step-unit">{unit}</span>
+      <button className="step-btn" type="button" disabled={disabled}
+        onClick={() => onChange(clamp(value + 1, min, max))}>+</button>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+const TARGETS = [2, 4, 6, 8, 0];
+
+function App() {
+  // Settings state
+  const [focusMin, setFocusMin] = useState(25);
+  const [breakMin, setBreakMin] = useState(5);
+  const [target,   setTarget]   = useState(4);
+  const [soundOn,  setSoundOn]  = useState(true);
+
+  // Timer state
+  const [phase,      setPhase]      = useState('idle');
+  const [running,    setRunning]    = useState(false);
+  const [remaining,  setRemaining]  = useState(25 * 60);
+  const [phaseTotal, setPhaseTotal] = useState(25 * 60);
+  const [elapsed,    setElapsed]    = useState(0);
+  const [sessions,   setSessions]   = useState(0);
+  const [log,        setLog]        = useState([]);
+  const [showDone,   setShowDone]   = useState(false);
+  const [flashing,   setFlashing]   = useState(false);
+
+  // Refs to escape stale closures in setInterval callbacks
+  const tickRef     = useRef(null);
+  const elapRef     = useRef(null);
+  const rem         = useRef(25 * 60);
+  const phaseR      = useRef('idle');
+  const runningR    = useRef(false);
+  const sessionsR   = useRef(0);
+  const targetR     = useRef(4);
+  const focusR      = useRef(25);
+  const breakR      = useRef(5);
+  const soundR      = useRef(true);
+
+  // Sync refs with state
+  useEffect(() => { rem.current      = remaining;  }, [remaining]);
+  useEffect(() => { phaseR.current   = phase;      }, [phase]);
+  useEffect(() => { runningR.current = running;    }, [running]);
+  useEffect(() => { sessionsR.current = sessions;  }, [sessions]);
+  useEffect(() => { targetR.current  = target;     }, [target]);
+  useEffect(() => { focusR.current   = focusMin;   }, [focusMin]);
+  useEffect(() => { breakR.current   = breakMin;   }, [breakMin]);
+  useEffect(() => { soundR.current   = soundOn;    }, [soundOn]);
+
+  // Update display when focus changes in idle
+  useEffect(() => {
+    if (phaseR.current === 'idle') {
+      rem.current = focusMin * 60;
+      setRemaining(focusMin * 60);
+      setPhaseTotal(focusMin * 60);
+    }
+  }, [focusMin]);
+
+  // Cleanup
+  useEffect(() => () => { clearInterval(tickRef.current); clearInterval(elapRef.current); }, []);
+
+  const flash = useCallback(() => {
+    setFlashing(true);
+    setTimeout(() => setFlashing(false), 380);
+  }, []);
+
+  const addLog = useCallback((type, mins) => {
+    setLog(prev => [{ type, mins, time: nowTime() }, ...prev]);
+  }, []);
+
+  const startElapTick = useCallback(() => {
+    clearInterval(elapRef.current);
+    elapRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+  }, []);
+
+  // Phase transition — reads from refs to avoid stale closure
+  const endPhase = useCallback(() => {
+    clearInterval(tickRef.current);
+
+    if (phaseR.current === 'focus') {
+      const newS = sessionsR.current + 1;
+      sessionsR.current = newS;
+      setSessions(newS);
+      addLog('focus', focusR.current);
+      if (soundR.current) playBeep('down');
+
+      // All target sessions done?
+      if (targetR.current > 0 && newS >= targetR.current) {
+        clearInterval(elapRef.current);
+        runningR.current = false; setRunning(false);
+        phaseR.current = 'idle';  setPhase('idle');
+        setShowDone(true);
+        return;
+      }
+
+      // Start break
+      flash();
+      const bSecs = breakR.current * 60;
+      phaseR.current = 'break'; setPhase('break');
+      setPhaseTotal(bSecs);
+      rem.current = bSecs; setRemaining(bSecs);
+      let r = bSecs;
+      tickRef.current = setInterval(() => {
+        r--; rem.current = r; setRemaining(r);
+        if (r <= 0) endPhase();
+      }, 1000);
+
+    } else {
+      // Break ended → new focus
+      addLog('break', breakR.current);
+      if (soundR.current) playBeep('up');
+      flash();
+      const fSecs = focusR.current * 60;
+      phaseR.current = 'focus'; setPhase('focus');
+      setPhaseTotal(fSecs);
+      rem.current = fSecs; setRemaining(fSecs);
+      let r = fSecs;
+      tickRef.current = setInterval(() => {
+        r--; rem.current = r; setRemaining(r);
+        if (r <= 0) endPhase();
+      }, 1000);
+    }
+  }, [addLog, flash]);
+
+  const handleToggle = useCallback(() => {
+    if (phaseR.current === 'idle') {
+      // Fresh start
+      const fSecs = focusR.current * 60;
+      phaseR.current = 'focus';  setPhase('focus');
+      setPhaseTotal(fSecs);
+      rem.current = fSecs; setRemaining(fSecs);
+      runningR.current = true;   setRunning(true);
+      if (soundR.current) playBeep('up');
+      let r = fSecs;
+      clearInterval(tickRef.current);
+      tickRef.current = setInterval(() => {
+        r--; rem.current = r; setRemaining(r);
+        if (r <= 0) endPhase();
+      }, 1000);
+      startElapTick();
+
+    } else if (runningR.current) {
+      // Pause
+      clearInterval(tickRef.current);
+      clearInterval(elapRef.current);
+      runningR.current = false; setRunning(false);
+
+    } else {
+      // Resume
+      runningR.current = true; setRunning(true);
+      let r = rem.current;
+      clearInterval(tickRef.current);
+      tickRef.current = setInterval(() => {
+        r--; rem.current = r; setRemaining(r);
+        if (r <= 0) endPhase();
+      }, 1000);
+      startElapTick();
+    }
+  }, [endPhase, startElapTick]);
+
+  const handleReset = useCallback(() => {
+    clearInterval(tickRef.current);
+    clearInterval(elapRef.current);
+    phaseR.current = 'idle';       setPhase('idle');
+    runningR.current = false;      setRunning(false);
+    sessionsR.current = 0;         setSessions(0);
+    rem.current = focusR.current * 60;
+    setRemaining(focusR.current * 60);
+    setPhaseTotal(focusR.current * 60);
+    setElapsed(0); setLog([]); setShowDone(false);
+  }, []);
+
+  const handleSkip = useCallback(() => {
+    if (phaseR.current === 'idle') return;
+    clearInterval(tickRef.current);
+    rem.current = 0; setRemaining(0);
+    endPhase();
+  }, [endPhase]);
+
+  const handleRestart = useCallback(() => {
+    setShowDone(false);
+    clearInterval(tickRef.current);
+    clearInterval(elapRef.current);
+    phaseR.current = 'idle';       setPhase('idle');
+    runningR.current = false;      setRunning(false);
+    sessionsR.current = 0;         setSessions(0);
+    rem.current = focusR.current * 60;
+    setRemaining(focusR.current * 60);
+    setPhaseTotal(focusR.current * 60);
+    setElapsed(0); setLog([]);
+  }, []);
+
+  // ── Derived display ──
+  const isIdle  = phase === 'idle';
+  const isBreak = phase === 'break';
+  const frac    = phaseTotal > 0 ? remaining / phaseTotal : 0;
+  const fmTotal = sessions * focusMin;
+
+  let ringLabel = 'Set your time & press Start';
+  if (phase === 'focus') ringLabel = target > 0 ? `Session ${sessions + 1} of ${target}` : `Session ${sessions + 1}`;
+  if (phase === 'break') ringLabel = 'Rest up — next focus coming!';
+
+  let btnLabel = 'Start';
+  if (!isIdle && running)  btnLabel = 'Pause';
+  if (!isIdle && !running) btnLabel = 'Resume';
+
+  return (
+    <div className="app">
+      <div className="blob blob-t" />
+      <div className="blob blob-b" />
+
+      <nav>
+        <div className="logo">
+          <span className="logo-pill">Lock In!</span>
+          <span className="logo-text">Pomodoro Timer</span>
+        </div>
+        <div className="nav-right">
+          <div className="nav-chip">
+            🍅{' '}<span className="cv cv-r">{sessions}</span>{' '}sessions
+          </div>
+          <div className="nav-chip chip-elapsed">
+            ⏱{' '}<span className="cv cv-b">{fmtHMS(elapsed)}</span>
+          </div>
+        </div>
+      </nav>
+
+      <div className={`page${flashing ? ' flash' : ''}`}>
+        <div className="eyebrow">Pomodoro Timer</div>
+        <h1>Lock In &amp; Stay Focused.</h1>
+        <p className="page-sub">Customise your session below, then hit Start.</p>
+
+        <Ring fraction={frac} phase={phase} timeStr={fmtMS(remaining)} label={ringLabel} />
+
+        <div className="controls">
+          <button className="btn-circle" type="button" onClick={handleReset} title="Reset">↺</button>
+          <button
+            className={`btn-main${isBreak && running ? ' btn-green' : ''}`}
+            type="button" onClick={handleToggle}
+          >
+            {running ? '⏸' : '▶'} {btnLabel}
+          </button>
+          <button className="btn-circle" type="button" onClick={handleSkip}
+            disabled={isIdle} title="Skip phase">⏭</button>
+        </div>
+
+        {/* Settings */}
+        <div className="card">
+          <div className="card-title">⚙ Session Settings</div>
+          <div className="two-col">
+            <div>
+              <div className="field-label"><span className="dot dot-r" /> Focus Time</div>
+              <Stepper value={focusMin} onChange={setFocusMin} min={1} max={120} unit="min" disabled={!isIdle} />
+            </div>
+            <div>
+              <div className="field-label"><span className="dot dot-g" /> Break Time</div>
+              <Stepper value={breakMin} onChange={setBreakMin} min={1} max={60} unit="min" disabled={!isIdle} />
+            </div>
+          </div>
+
+          <div className="chips-label">Target Sessions</div>
+          <div className="chips-row">
+            {TARGETS.map(n => (
+              <button key={n} type="button"
+                className={`tchip${target === n ? ' tchip-on' : ''}${!isIdle ? ' tchip-locked' : ''}`}
+                onClick={() => { if (isIdle) setTarget(n); }}>
+                {n === 0 ? '∞' : n}
+              </button>
+            ))}
+          </div>
+
+          <div className="toggle-row">
+            <span className="toggle-label">🔔 Sound Alerts</span>
+            <div className={`toggle-track${soundOn ? ' ton' : ''}`} onClick={() => setSoundOn(v => !v)}>
+              <div className="toggle-thumb" />
+            </div>
+          </div>
+        </div>
+
+        {/* Log */}
+        <div className="card card-last">
+          <div className="card-title">📋 Session Log</div>
+          <div className="log-list">
+            {log.length === 0
+              ? <div className="lempty">No sessions yet — press Start to begin.</div>
+              : log.map((e, i) => (
+                <div className="log-item" key={i}>
+                  <div className={`ldot ${e.type === 'focus' ? 'ldot-r' : 'ldot-g'}`} />
+                  <span className="ltext">{e.type === 'focus' ? '🎯 Focus' : '☕ Break'} — {e.time}</span>
+                  <span className="ldur">{e.mins}m</span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* Completion overlay */}
+      {showDone && (
+        <div className="overlay">
+          <div className="ov-card">
+            <div className="ov-emoji">🏆</div>
+            <div className="ov-title">All Done!</div>
+            <div className="ov-sub">
+              You crushed {sessions} focus session{sessions !== 1 ? 's' : ''}!
+              {' '}Total focus: {fmTotal >= 60 ? (fmTotal/60).toFixed(1)+'h' : fmTotal+' min'}. Incredible work!
+            </div>
+            <div className="ov-stats">
+              <div className="ov-stat">
+                <div className="ov-num">{sessions}</div>
+                <div className="ov-lbl">Sessions</div>
+              </div>
+              <div className="ov-stat">
+                <div className="ov-num">{fmTotal >= 60 ? (fmTotal/60).toFixed(1)+'h' : fmTotal+'m'}</div>
+                <div className="ov-lbl">Focus Time</div>
+              </div>
+            </div>
+            <button className="btn-restart" type="button" onClick={handleRestart}>↺ Start Again</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -4,9 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Lock In! - Pomodoro Timer</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet"/>
+
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -19,7 +17,7 @@
 html{background:#0a0a0a}
 body{
   width:100%;min-height:100%;
-  font-family:'Nunito Sans',sans-serif;
+  font-family:'Nunito Sans','Segoe UI',system-ui,sans-serif;
   color:var(--text);overflow-x:hidden;
   background:transparent;
 }
@@ -50,14 +48,14 @@ nav{
   border-bottom:1px solid var(--b1);
 }
 .logo{display:flex;align-items:center;gap:0.45rem;white-space:nowrap}
-.logo-pill{font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;
+.logo-pill{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:900;font-size:1rem;
   background:var(--red);color:#fff;padding:2px 10px;border-radius:8px}
-.logo-text{font-family:'Nunito',sans-serif;font-weight:900;font-size:1.2rem;color:#fff;letter-spacing:-0.3px}
+.logo-text{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:900;font-size:1.2rem;color:#fff;letter-spacing:-0.3px}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:0.65rem}
 .nav-chip{display:flex;align-items:center;gap:0.4rem;background:rgba(30,30,30,0.7);
   border:1px solid var(--b2);border-radius:20px;padding:0.28rem 0.85rem;
   font-size:0.77rem;font-weight:700;color:var(--muted);backdrop-filter:blur(8px)}
-.cv{font-family:'Nunito',sans-serif;font-size:0.95rem;font-weight:800}
+.cv{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-size:0.95rem;font-weight:800}
 .cv-r{color:var(--red)}.cv-b{color:var(--blue)}
 
 .page{position:relative;z-index:1;display:flex;flex-direction:column;
@@ -65,7 +63,7 @@ nav{
 .page.flash{opacity:0.45}
 .eyebrow{font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:3px;
   color:var(--red);margin-bottom:0.45rem;text-align:center}
-h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,2.5rem);
+h1{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,2.5rem);
   text-align:center;line-height:1.1;letter-spacing:-0.5px;margin-bottom:0.4rem}
 .page-sub{color:var(--muted);font-size:0.88rem;text-align:center;margin-bottom:2.2rem}
 
@@ -81,12 +79,12 @@ h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,
   transition:color 0.4s,border-color 0.4s;backdrop-filter:blur(8px)}
 .badge-focus{color:var(--red);border-color:rgba(232,37,58,0.3)}
 .badge-break{color:var(--green);border-color:rgba(0,214,143,0.3)}
-.time-display{font-family:'Nunito',sans-serif;font-weight:900;
+.time-display{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:900;
   font-size:clamp(3.2rem,13vw,4.8rem);line-height:1;letter-spacing:-4px;color:#fff}
 .time-label{font-size:0.7rem;color:var(--muted);font-weight:600;margin-top:0.2rem;text-align:center;padding:0 1rem}
 
 .controls{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
-.btn-main{background:var(--red);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;
+.btn-main{background:var(--red);color:#fff;font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:800;
   font-size:1rem;padding:0.9rem 2.8rem;border-radius:14px;border:none;cursor:pointer;
   box-shadow:0 4px 22px var(--red-glow);min-width:155px;
   transition:background 0.18s,transform 0.1s;user-select:none}
@@ -95,7 +93,7 @@ h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,
 .btn-main.green:hover{background:var(--green-dark)}
 .btn-circle{width:52px;height:52px;border-radius:50%;background:rgba(30,30,30,0.75);
   border:1px solid var(--b2);color:var(--muted);font-size:1.25rem;
-  font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;
+  font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:800;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   transition:background 0.18s,color 0.18s,transform 0.1s;user-select:none;backdrop-filter:blur(8px)}
 .btn-circle:hover:not(:disabled){background:rgba(45,45,45,0.9);color:var(--text)}
@@ -106,7 +104,7 @@ h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,
   border:1px solid var(--b1);border-radius:20px;padding:1.5rem;
   width:100%;max-width:480px;margin-bottom:1.2rem}
 .card-last{margin-bottom:0}
-.card-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:0.8rem;
+.card-title{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:800;font-size:0.8rem;
   text-transform:uppercase;letter-spacing:1.8px;color:var(--muted);margin-bottom:1.2rem;
   padding-bottom:0.8rem;border-bottom:1px solid var(--b1)}
 
@@ -119,11 +117,11 @@ h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,
 .stepper{display:flex;align-items:center;background:rgba(30,30,30,0.8);
   border:1.5px solid var(--b2);border-radius:10px;overflow:hidden}
 .step-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.2rem;
-  font-weight:900;font-family:'Nunito',sans-serif;width:40px;height:44px;
+  font-weight:900;font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;width:40px;height:44px;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:color 0.15s,background 0.15s}
 .step-btn:hover:not(:disabled){color:var(--text);background:rgba(45,45,45,0.9)}
 .step-btn:disabled{opacity:0.3;cursor:not-allowed}
-.step-input{flex:1;background:none;border:none;color:#fff;font-family:'Nunito',sans-serif;
+.step-input{flex:1;background:none;border:none;color:#fff;font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;
   font-weight:900;font-size:1.2rem;text-align:center;outline:none;min-width:0;padding:0}
 .step-input:disabled{opacity:0.4}
 .step-unit{font-size:0.68rem;color:var(--muted);padding-right:0.65rem;font-weight:600;flex-shrink:0}
@@ -132,7 +130,7 @@ h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,
 .chips-row{display:flex;gap:0.5rem;margin-bottom:1rem}
 .tchip{flex:1;background:rgba(30,30,30,0.8);border:1.5px solid var(--b2);border-radius:9px;
   padding:0.55rem 0.3rem;color:var(--muted);font-size:0.88rem;font-weight:800;text-align:center;
-  cursor:pointer;font-family:'Nunito',sans-serif;transition:background 0.15s,border-color 0.2s,color 0.15s;user-select:none}
+  cursor:pointer;font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;transition:background 0.15s,border-color 0.2s,color 0.15s;user-select:none}
 .tchip:hover{background:rgba(45,45,45,0.9);color:var(--text)}
 .tchip.on{background:rgba(232,37,58,0.14);border-color:rgba(232,37,58,0.45);color:var(--red)}
 .tchip.locked{opacity:0.35;cursor:not-allowed;pointer-events:none}
@@ -164,14 +162,14 @@ h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:clamp(1.7rem,4.5vw,
   animation:popIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both}
 @keyframes popIn{from{opacity:0;transform:scale(0.75)}to{opacity:1;transform:scale(1)}}
 .ov-emoji{font-size:3.5rem;margin-bottom:0.5rem}
-.ov-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:1.65rem;margin-bottom:0.35rem}
+.ov-title{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:900;font-size:1.65rem;margin-bottom:0.35rem}
 .ov-sub{color:var(--muted);font-size:0.88rem;line-height:1.65;margin-bottom:1.4rem}
 .ov-stats{display:flex;gap:0.8rem;justify-content:center;margin-bottom:1.5rem}
 .ov-stat{background:rgba(30,30,30,0.8);border-radius:12px;padding:0.75rem 1.3rem}
-.ov-num{font-family:'Nunito',sans-serif;font-weight:900;font-size:1.5rem;color:var(--red)}
+.ov-num{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weight:900;font-size:1.5rem;color:var(--red)}
 .ov-lbl{font-size:0.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
 .btn-restart{background:var(--red);color:#fff;padding:0.8rem 2rem;border-radius:12px;
-  font-size:0.95rem;font-weight:800;font-family:'Nunito',sans-serif;
+  font-size:0.95rem;font-weight:800;font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;
   box-shadow:0 4px 18px var(--red-glow);width:100%;border:none;cursor:pointer;transition:background 0.18s}
 .btn-restart:hover{background:var(--red-dark)}
 

@@ -179,6 +179,38 @@ h1{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weig
 }
 @media(max-width:360px){.logo-text{display:none}}
 
+
+/* AMBIENT SOUND */
+.ambient-row{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(30,30,30,0.7);border:1px solid var(--b1);
+  border-radius:10px;padding:0.7rem 0.9rem;margin-top:0.6rem;
+}
+.ambient-left{display:flex;align-items:center;gap:0.6rem}
+.ambient-label{font-size:0.84rem;font-weight:600;color:var(--muted)}
+.ambient-select{
+  background:rgba(30,30,30,0.9);border:1px solid var(--b2);
+  border-radius:8px;color:var(--text);font-size:0.8rem;font-weight:600;
+  padding:0.3rem 0.5rem;outline:none;cursor:pointer;
+  font-family:'Nunito Sans','Segoe UI',system-ui,sans-serif;
+}
+.ambient-select option{background:#1a1a1a}
+.ambient-vol{
+  width:70px;accent-color:var(--red);cursor:pointer;
+}
+
+
+/* IN-APP TOAST (fallback when notifications blocked/unsupported) */
+.toast{
+  position:fixed;bottom:5rem;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(20,20,20,0.95);border:1px solid rgba(255,255,255,0.15);
+  backdrop-filter:blur(16px);border-radius:12px;padding:0.65rem 1.2rem;
+  font-size:0.84rem;font-weight:700;color:var(--text);white-space:nowrap;
+  z-index:500;opacity:0;transition:opacity 0.25s,transform 0.25s;pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
 /* WALLPAPER PICKER */
 .wp-btn{
   position:fixed;bottom:1.2rem;right:1.2rem;z-index:300;
@@ -293,6 +325,16 @@ h1{font-family:'Nunito','Varela Round',ui-rounded,system-ui,sans-serif;font-weig
       <div class="toggle-track on" id="sound-toggle">
         <div class="toggle-thumb"></div>
       </div>
+    </div>
+    <div class="ambient-row">
+      <div class="ambient-left">
+        <span class="ambient-label">🎵 Ambient</span>
+        <select class="ambient-select" id="ambient-select">
+          <option value="off">Off</option>
+          <option value="lofi">Lofi Beats</option>
+        </select>
+      </div>
+      <input class="ambient-vol" id="ambient-vol" type="range" min="0" max="1" step="0.05" value="0.4" title="Volume"/>
     </div>
   </div>
 
@@ -447,6 +489,7 @@ function endPhase(){
   if(phase==='focus'){
     sessions++;
     addLog('focus',focusMin);
+    sendNotif('🎯 Focus session done!', 'Time for a break. You earned it.');
     if(soundOn)playBeep('down');
     if(target>0&&sessions>=target){
       stopTicks();running=false;phase='idle';
@@ -455,12 +498,15 @@ function endPhase(){
     }
     flash();
     phase='break';remaining=breakMin*60;phaseTotal=breakMin*60;
+    sendNotif('☕ Break time!', `${breakMin} min break. Step away and recharge.`);
     render();startPhaseTick();
   } else {
     addLog('break',breakMin);
+    sendNotif('☕ Break over!', 'Back to focus. Lock in!');
     if(soundOn)playBeep('up');
     flash();
     phase='focus';remaining=focusMin*60;phaseTotal=focusMin*60;
+    sendNotif('🎯 Focus time!', `${focusMin} min session. Lock in!`);
     render();startPhaseTick();
   }
 }
@@ -471,7 +517,8 @@ function showDone(){
   document.getElementById('ov-time').textContent=fmTotal>=60?(fmTotal/60).toFixed(1)+'h':fmTotal+'m';
   document.getElementById('ov-sub').textContent=
     `You crushed ${sessions} focus session${sessions!==1?'s':''}! Total focus: ${fmTotal>=60?(fmTotal/60).toFixed(1)+'h':fmTotal+' min'}. Incredible work!`;
-  elOverlay.classList.add('show');
+  sendNotif('🏆 All done!', `You crushed ${sessions} sessions. Incredible work!`);
+      elOverlay.classList.add('show');
 }
 
 function doReset(){
@@ -485,9 +532,12 @@ function doReset(){
 
 // Button events
 document.getElementById('btn-main').addEventListener('click',()=>{
+  // Show notification permission banner on very first click (must be inside user gesture)
+  if(typeof showNotifBanner === 'function') showNotifBanner();
   if(phase==='idle'){
     phase='focus';remaining=focusMin*60;phaseTotal=focusMin*60;
     running=true;if(soundOn)playBeep('up');
+    sendNotif('🎯 Session started!', `${focusMin} min focus. You got this!`);
     render();startPhaseTick();startElapTick();
   } else if(running){
     stopTicks();running=false;render();
@@ -538,6 +588,314 @@ elSoundToggle.addEventListener('click',()=>{
 
 render();
 
+
+// ── Ambient Sound ──────────────────────────────────────────────────────────
+let ambientCtx = null, ambientNode = null, ambientGain = null;
+
+function getAmbientCtx() {
+  if (!ambientCtx) ambientCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return ambientCtx;
+}
+
+function stopAmbient() {
+  if (ambientNode) { try { ambientNode.stop(); } catch(e){} ambientNode = null; }
+}
+
+function startAmbient(type, vol) {
+  stopAmbient();
+  if (type === 'off') return;
+  const ctx = getAmbientCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+
+  ambientGain = ctx.createGain();
+  ambientGain.gain.value = parseFloat(vol);
+  ambientGain.connect(ctx.destination);
+
+  // ── Master compressor for warmth ──
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.knee.value = 10;
+  comp.ratio.value = 4; comp.attack.value = 0.05; comp.release.value = 0.3;
+  comp.connect(ambientGain);
+
+  // ── Vinyl crackle ──
+  const crackBuf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+  const crackData = crackBuf.getChannelData(0);
+  for (let i = 0; i < crackData.length; i++) {
+    crackData[i] = Math.random() < 0.002 ? (Math.random() * 2 - 1) * 0.6 : (Math.random() * 2 - 1) * 0.012;
+  }
+  const crackSrc = ctx.createBufferSource();
+  crackSrc.buffer = crackBuf; crackSrc.loop = true;
+  const crackFilter = ctx.createBiquadFilter();
+  crackFilter.type = 'bandpass'; crackFilter.frequency.value = 3500; crackFilter.Q.value = 0.5;
+  const crackGain = ctx.createGain(); crackGain.gain.value = 0.18;
+  crackSrc.connect(crackFilter); crackFilter.connect(crackGain); crackGain.connect(comp);
+  crackSrc.start();
+
+  // ── Lofi Girl-style chord progression: Cmaj7 → Am7 → Fmaj7 → G7 ──
+  // Each chord = root + third + fifth + seventh, voiced in mid-low range
+  const CHORDS = [
+    // Cmaj7: C3 E3 G3 B3
+    [130.81, 164.81, 196.00, 246.94],
+    // Am7: A2 C3 E3 G3
+    [110.00, 130.81, 164.81, 196.00],
+    // Fmaj7: F3 A3 C4 E4
+    [174.61, 220.00, 261.63, 329.63],
+    // G7: G2 B2 D3 F3
+    [98.00, 123.47, 146.83, 174.61],
+  ];
+
+  const BPM = 72;
+  const BEAT = 60 / BPM;
+  const CHORD_DUR = BEAT * 4; // one chord per bar
+  const LOOP_DUR = CHORD_DUR * CHORDS.length;
+  let stopped = false;
+  const nodes = [];
+
+  function makeFilter(type, freq, q) {
+    const f = ctx.createBiquadFilter();
+    f.type = type; f.frequency.value = freq;
+    if (q !== undefined) f.Q.value = q;
+    return f;
+  }
+
+  function playChord(freqs, t, dur) {
+    freqs.forEach((freq, i) => {
+      // Slightly detune each voice for warmth
+      const detune = (Math.random() - 0.5) * 8;
+      // Rhodes-like: triangle + small sine mix
+      ['triangle', 'sine'].forEach((type, j) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        const vol = j === 0 ? 0.13 : 0.06;
+        osc.type = type;
+        osc.frequency.value = freq;
+        osc.detune.value = detune + (j * 3);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + 0.06);
+        g.gain.setValueAtTime(vol * 0.7, t + dur * 0.5);
+        g.gain.linearRampToValueAtTime(0, t + dur + 0.1);
+        // Warm lowpass
+        const lp = makeFilter('lowpass', 900);
+        osc.connect(lp); lp.connect(g); g.connect(comp);
+        osc.start(t); osc.stop(t + dur + 0.15);
+        nodes.push(osc);
+      });
+    });
+  }
+
+  // Soft sub-bass note (root of each chord)
+  function playBass(freq, t, dur) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq / 2; // one octave down
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.22, t + 0.04);
+    g.gain.setValueAtTime(0.18, t + dur * 0.6);
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.05);
+    const lp = makeFilter('lowpass', 280);
+    osc.connect(lp); lp.connect(comp);
+    osc.start(t); osc.stop(t + dur + 0.1);
+    nodes.push(osc);
+  }
+
+  // Soft kick — pitch drops from 120→40 Hz
+  function playKick(t) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(g); g.connect(comp);
+    osc.start(t); osc.stop(t + 0.22);
+    nodes.push(osc);
+  }
+
+  // Snare-like noise burst on beat 3
+  function playSnare(t) {
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.12), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const hp = makeFilter('highpass', 2000);
+    const bp = makeFilter('bandpass', 800, 1.2);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(comp);
+    src.start(t);
+  }
+
+  // Closed hi-hat
+  function playHat(t, vol) {
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const hp = makeFilter('highpass', 8000);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol * 0.14, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    src.connect(hp); hp.connect(g); g.connect(comp);
+    src.start(t);
+  }
+
+  // Schedule one full loop
+  function scheduleLoop(loopStart) {
+    if (stopped) return;
+    CHORDS.forEach((freqs, ci) => {
+      const cs = loopStart + ci * CHORD_DUR;
+      playChord(freqs, cs, CHORD_DUR);
+      playBass(freqs[0], cs, CHORD_DUR);
+      // Drums: kick on 1 & 3, snare on 2 & 4, hats every 8th note
+      for (let b = 0; b < 4; b++) {
+        const bt = cs + b * BEAT;
+        if (b === 0 || b === 2) playKick(bt);
+        if (b === 1 || b === 3) playSnare(bt);
+        playHat(bt, 1.0);
+        playHat(bt + BEAT * 0.5, 0.55); // off-beat hat
+      }
+    });
+    // Schedule next loop slightly before this one ends
+    setTimeout(() => scheduleLoop(loopStart + LOOP_DUR), (LOOP_DUR - 1.0) * 1000);
+  }
+
+  scheduleLoop(ctx.currentTime + 0.1);
+
+  ambientNode = {
+    stop: () => {
+      stopped = true;
+      nodes.forEach(n => { try { n.stop(); } catch(e){} });
+      try { crackSrc.stop(); } catch(e) {}
+    }
+  };
+}
+
+const ambientSelect = document.getElementById('ambient-select');
+const ambientVol = document.getElementById('ambient-vol');
+
+ambientSelect.addEventListener('change', () => {
+  startAmbient(ambientSelect.value, ambientVol.value);
+});
+ambientVol.addEventListener('input', () => {
+  if (ambientGain) ambientGain.gain.value = parseFloat(ambientVol.value);
+});
+
+// ── In-App Toast ──────────────────────────────────────────────────────────
+var _toastTimer = null;
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3500);
+}
+
+// ── Browser Notifications ──────────────────────────────────────────────────
+// Supports: Chrome, Firefox, Brave, Edge (desktop + Android), Safari 16.4+
+// Gracefully silent on iOS < 16.4 and unsupported browsers
+
+const NOTIF_SUPPORTED = (function() {
+  try { return ('Notification' in window); } catch(e) { return false; }
+})();
+
+// ---- Permission Banner ----
+let _bannerShown = false;
+function showNotifBanner() {
+  if (_bannerShown) return;
+  _bannerShown = true;
+  if (!NOTIF_SUPPORTED) return;
+  if (Notification.permission !== 'default') return; // already decided
+  if (document.getElementById('notif-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'notif-banner';
+  banner.style.cssText = [
+    'position:fixed','top:0','left:0','right:0','z-index:9999',
+    'background:rgba(18,18,18,0.97)','border-bottom:1px solid rgba(232,37,58,0.4)',
+    'backdrop-filter:blur(16px)','padding:0.7rem 1rem',
+    'display:flex','align-items:center','justify-content:center','gap:0.75rem',
+    'font-size:0.83rem','font-weight:600','color:#f0f0f0',
+    'font-family:Nunito Sans,Segoe UI,system-ui,sans-serif',
+    'box-shadow:0 2px 16px rgba(0,0,0,0.5)'
+  ].join(';');
+
+  const text = document.createElement('span');
+  text.textContent = '🔔 Get notified when sessions end — even in other tabs';
+
+  const yes = document.createElement('button');
+  yes.textContent = 'Enable';
+  yes.style.cssText = [
+    'background:#e8253a','color:#fff','border:none','border-radius:8px',
+    'padding:0.3rem 0.9rem','font-size:0.8rem','font-weight:800','cursor:pointer',
+    'font-family:inherit','flex-shrink:0'
+  ].join(';');
+
+  const no = document.createElement('button');
+  no.textContent = '✕';
+  no.style.cssText = [
+    'background:transparent','color:#888','border:none',
+    'cursor:pointer','font-size:1.1rem','padding:0 0.25rem','flex-shrink:0'
+  ].join(';');
+
+  banner.appendChild(text);
+  banner.appendChild(yes);
+  banner.appendChild(no);
+  document.body.appendChild(banner);
+
+  // YES — must request permission INSIDE this click handler (user gesture requirement)
+  yes.addEventListener('click', function() {
+    banner.remove();
+    try {
+      var result = Notification.requestPermission();
+      // Handle both Promise (modern) and callback (legacy) forms
+      if (result && typeof result.then === 'function') {
+        result.then(function(perm) {
+          if (perm === 'granted') {
+            fireNotif('🔔 Notifications on!', "You'll be alerted when sessions change.");
+          }
+        }).catch(function(){});
+      }
+    } catch(e) {}
+  });
+
+  no.addEventListener('click', function() { banner.remove(); });
+}
+
+// ---- Fire a real browser notification (only when permission = granted) ----
+function fireNotif(title, body) {
+  if (!NOTIF_SUPPORTED) return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    var n = new Notification(title, {
+      body: body,
+      tag: 'lockin-notif',
+      renotify: true,
+      requireInteraction: false,
+      silent: false
+    });
+    n.onclick = function() {
+      try { window.focus(); } catch(e) {}
+      n.close();
+    };
+  } catch(e) {}
+}
+
+// ---- Main sendNotif — always shows toast, fires browser notif if allowed ----
+function sendNotif(title, body) {
+  showToast(title + '  ' + body);
+  fireNotif(title, body);
+}
+
+// ---- Show banner the first time user hits Start ----
+var bannerShown = false;
+
+
 // Wallpaper picker
 document.addEventListener('DOMContentLoaded', function() {
 const wallpapers = [
@@ -583,6 +941,7 @@ document.addEventListener('click', (e) => {
 }); // end DOMContentLoaded
 </script>
 
+<div class="toast" id="toast"></div>
 <button class="wp-btn" id="wp-btn" title="Change wallpaper">🖼</button>
 <div class="wp-panel" id="wp-panel">
   <div class="wp-panel-title">Wallpaper</div>
